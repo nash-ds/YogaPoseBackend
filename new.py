@@ -2,43 +2,34 @@ from flask import Flask, render_template, Response
 import cv2
 import mediapipe as mp
 import math
-import pyttsx3
 import threading
+import time
 
 # Initialize Flask app
 app = Flask(__name__)
 
-# Initialize mediapipe pose class
+# Initialize MediaPipe Pose
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5, model_complexity=1)
 mp_drawing = mp.solutions.drawing_utils
 
-# Initialize pyttsx3 engine for voice feedback
-engine = pyttsx3.init()
+# Global variables for pose step tracking and message display
+pose_state = 1
+continue_session = True  # Determines if the user wants to continue
 
-# Set properties for pyttsx3
-voices = engine.getProperty('voices')
-engine.setProperty('voice', voices[0].id)  # Change index for different voices
-engine.setProperty('rate', 150)  # Speed of speech
-engine.setProperty('volume', 1)  # Volume level (0.0 to 1.0)
+# Ideal angles for tree pose for each joint (example values)
+IDEAL_ANGLES = {
+    "left_knee": 180,
+    "right_knee": 180,
+    "left_shoulder": 180,
+    "right_shoulder": 180
+}
 
-# Initialize pose state variable
-pose_state = 1  # Start at step 1
+# Global variable to store the text message and accuracy to be displayed on the webpage
+display_message = "Initializing pose tracking..."
+accuracy_message = "Accuracy: 0%"
 
-# Lock for thread safety
-audio_lock = threading.Lock()
-
-# Function to provide voice instructions
-def voice_assistant(message):
-    print(f"Speaking: {message}")  # Debug statement
-    def speak():
-        with audio_lock:
-            engine.say(message)
-            engine.runAndWait()
-    
-    threading.Thread(target=speak).start()
-
-
+# Function to detect pose landmarks
 def detectPose(image, pose):
     output_image = image.copy()
     imageRGB = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -53,6 +44,7 @@ def detectPose(image, pose):
     
     return output_image, landmarks
 
+# Function to calculate angle between three landmarks
 def calculateAngle(landmark1, landmark2, landmark3):
     x1, y1, _ = landmark1
     x2, y2, _ = landmark2
@@ -62,64 +54,90 @@ def calculateAngle(landmark1, landmark2, landmark3):
         angle += 360
     return angle
 
-def classifyTreePose(landmarks, output_image):
-    global pose_state
-    
-    # Calculate angles for Tree Pose checkpoints
-    left_knee_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_HIP.value], 
-                                     landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value],
-                                     landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value])
-    
-    right_knee_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value], 
-                                      landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value],
-                                      landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value])
-    
-    left_shoulder_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value],
-                                         landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
-                                         landmarks[mp_pose.PoseLandmark.LEFT_HIP.value])
-    
-    right_shoulder_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
-                                          landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value],
-                                          landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value])
+# Function to calculate accuracy based on ideal angles
+def calculate_accuracy(current_angles):
+    total_accuracy = 0
+    for joint, ideal_angle in IDEAL_ANGLES.items():
+        current_angle = current_angles.get(joint, 0)
+        joint_accuracy = max(0, 100 - abs(ideal_angle - current_angle))
+        total_accuracy += joint_accuracy
+    return total_accuracy / len(IDEAL_ANGLES)
 
-    # Check pose step-by-step using the pose_state variable
-    if pose_state == 1:
-        if 165 < left_knee_angle < 195 and 165 < right_knee_angle < 195:
-            voice_assistant("Please lift your leg.")
-            pose_state = 2  # Move to next step
+# Tree Pose Sequence Logic
+def tree_pose_sequence(landmarks, output_image):
+    global pose_state, continue_session, display_message, accuracy_message
+
+    # Calculate angles for each joint
+    current_angles = {}
+    current_angles["left_knee"] = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_HIP.value], 
+                                                 landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value],
+                                                 landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value])
     
+    current_angles["right_knee"] = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value], 
+                                                  landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value],
+                                                  landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value])
+
+    current_angles["left_shoulder"] = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value],
+                                                     landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
+                                                     landmarks[mp_pose.PoseLandmark.LEFT_HIP.value])
+    
+    current_angles["right_shoulder"] = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
+                                                      landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value],
+                                                      landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value])
+
+    # Calculate accuracy
+    accuracy = calculate_accuracy(current_angles)
+    accuracy_message = f"Accuracy: {accuracy:.2f}%"
+
+    # Pose validation and state progression
+    if pose_state == 1:
+        display_message = "Stand still."
+        if 165 < current_angles["left_knee"] < 195 and 165 < current_angles["right_knee"] < 195:
+            pose_state = 2
+
     elif pose_state == 2:
-        if left_knee_angle < 60 or right_knee_angle < 60:
-            voice_assistant("Raise your hands and join them.")
+        display_message = "Lift your leg."
+        if current_angles["left_knee"] < 60 or current_angles["right_knee"] < 60:
             pose_state = 3
     
     elif pose_state == 3:
-        if 170 < left_shoulder_angle < 190 and 170 < right_shoulder_angle < 190:
-            voice_assistant("Tree Pose completed, lower your hands.")
+        display_message = "Raise your hands and join them."
+        if 170 < current_angles["left_shoulder"] < 190 and 170 < current_angles["right_shoulder"] < 190:
             pose_state = 4
-    
+
     elif pose_state == 4:
-        if 80 < left_shoulder_angle < 110 and 80 < right_shoulder_angle < 110:
-            voice_assistant("Lower your leg.")
+        display_message = "Lower your hands."
+        if 15 < current_angles["left_shoulder"] < 40 and 15 < current_angles["right_shoulder"] < 40:
             pose_state = 5
-    
+
     elif pose_state == 5:
-        if 165 < left_knee_angle < 195 and 165 < right_knee_angle < 195:
-            voice_assistant("Tree Pose completed!")
-            pose_state = 1  # Reset for next cycle
+        display_message = "Lower your leg."
+        if 165 < current_angles["left_knee"] < 195 and 165 < current_angles["right_knee"] < 195:
+            display_message = "Tree Pose completed! Do you want to continue or stop?"
+            time.sleep(2)
+            continue_session = get_user_response()
 
-    # Write the label of the current step on the output image.
-    cv2.putText(output_image, f'Step {pose_state}', (10, 30), cv2.FONT_HERSHEY_PLAIN, 2, (0, 255, 0), 2)
+            if continue_session:
+                pose_state = 1
+            else:
+                pose_state = 6
 
+    # Display the current step and accuracy on the frame
+    cv2.putText(output_image, display_message, (10, 30), cv2.FONT_HERSHEY_PLAIN, 2, (0, 255, 0), 2)
+    cv2.putText(output_image, accuracy_message, (10, 60), cv2.FONT_HERSHEY_PLAIN, 2, (0, 255, 0), 2)
     return output_image
 
-# Function to read from the webcam and classify pose step-by-step
+# Placeholder for getting user response
+def get_user_response():
+    return True  # Here, it’s set to continue for testing purposes
+
+# Webcam feed with pose detection
 def webcam_feed():
-    camera_video = cv2.VideoCapture('http://100.93.186.46:8080/video')
+    camera_video = cv2.VideoCapture(0)
     camera_video.set(3, 1380)
     camera_video.set(4, 960)
 
-    while camera_video.isOpened():
+    while camera_video.isOpened() and continue_session:
         ok, frame = camera_video.read()
         if not ok:
             continue
@@ -128,7 +146,7 @@ def webcam_feed():
         frame, landmarks = detectPose(frame, pose)
 
         if landmarks:
-            frame = classifyTreePose(landmarks, frame)
+            frame = tree_pose_sequence(landmarks, frame)
 
         ret, jpeg = cv2.imencode('.jpg', frame)
         frame = jpeg.tobytes()
@@ -150,6 +168,10 @@ def yoga_try():
 @app.route('/video_feed1')
 def video_feed1():
     return Response(webcam_feed(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/pose_message')
+def pose_message():
+    return display_message
 
 if __name__ == '__main__':
     app.run(debug=True)
