@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Session Results</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        table { border-collapse: collapse; width: 50%; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Yoga Session Results</h1>
+    <table>
+        <tr>
+            <th>Pose</th>
+            <th>Average Accuracy (%)</th>
+        </tr>
+        {% for pose, accuracy in results.items() %}
+        <tr>
+            <td>{{ pose }}</td>
+            <td>{{ accuracy|round(2) }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <h2>Overall Accuracy: {{ overall_accuracy|round(2) }}%</h2>
+    <h2>Award: {{ medal }}</h2>
+    <a href="{{ url_for('index') }}">Back to Home</a>
+</body>
+</html>

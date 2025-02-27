@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pose Detection - {{ current_pose }}</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      font-family: Arial, sans-serif;
+    }
+    .centered {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 80vh;
+      margin-right: 30px;
+    }
+    img {
+      max-width: 100%;
+      max-height: 100%;
+    }
+    .scroll-container {
+      background-color: #ffffff;
+      overflow-y: auto;
+      max-height: 300px;
+      width: 200px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 50px;
+    }
+    .scroll-container img {
+      max-width: 100%;
+      height: auto;
+      margin-bottom: 10px;
+    }
+    .buttons {
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+    }
+    .buttons button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="centered">
+    <img src="{{ url_for('video_feed1') }}" width="100%" alt="Pose Detection">
+  </div>
+  <div class="scroll-container">
+    <!-- Use a dynamic image if available -->
+    <img src="{{ url_for('static', filename='img/' + pose_img) }}" alt="{{ current_pose }}" width="600" height="400">
+    <div id="feedback">
+      <h2>Instructions:</h2>
+      <p id="pose-message">Initializing pose tracking...</p>
+    </div>
+    <div class="buttons">
+      <button id="backBtn">Back</button>
+      <button id="resultsBtn" style="display:none;">View Session Results</button>
+    </div>
+  </div>
+  
+  <script>
+    // Attach event listeners for the buttons
+    document.getElementById('backBtn').addEventListener('click', function() {
+      window.location.href = "{{ url_for('index') }}";
+    });
+    document.getElementById('resultsBtn').addEventListener('click', function() {
+      window.location.href = "{{ url_for('session_results_page') }}";
+    });
+    
+    let lastMessage = "";
+    
+    async function updatePoseMessage() {
+      const response = await fetch('/pose_message');
+      const message = await response.text();
+      document.getElementById('pose-message').textContent = message;
+      
+      if (message !== lastMessage) {
+        speakMessage(message);
+        lastMessage = message;
+      }
+      
+      // Show the "View Session Results" button if the final message is sent
+      if (message.includes("Completed")) {
+        document.getElementById('resultsBtn').style.display = "block";
+      }
+    }
+    
+    function speakMessage(msg) {
+      if ('speechSynthesis' in window) {
+        let utterance = new SpeechSynthesisUtterance(msg);
+        speechSynthesis.speak(utterance);
+      }
+    }
+    
+    setInterval(updatePoseMessage, 1000);
+  </script>
+</body>
+</html>

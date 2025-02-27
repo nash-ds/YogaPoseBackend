@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Yoga Session Selection</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .pose-list { list-style: none; padding: 0; }
+        .pose-list li { margin: 10px 0; }
+        button { padding: 10px 20px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>Select Yoga Poses for Your Session</h1>
+    <form action="{{ url_for('start_session') }}" method="post">
+        <ul class="pose-list">
+            <li>
+                <input type="checkbox" name="poses" value="Tree Pose" id="tree">
+                <label for="tree">Tree Pose</label>
+            </li>
+            <li>
+                <input type="checkbox" name="poses" value="Warrior 1" id="warrior1">
+                <label for="warrior1">Warrior 1</label>
+            </li>
+            <li>
+                <input type="checkbox" name="poses" value="Warrior 2" id="warrior2">
+                <label for="warrior2">Warrior 2</label>
+            </li>
+            <li>
+                <input type="checkbox" name="poses" value="Triangle Pose" id="triangle">
+                <label for="triangle">Triangle Pose</label>
+            </li>
+            <li>
+                <input type="checkbox" name="poses" value="Lord of Dance Pose" id="lordofdance">
+                <label for="lordofdance">Lord of Dance Pose</label>
+            </li>
+        </ul>
+        <button type="submit">Start Session</button>
+    </form>
+</body>
+</html>
