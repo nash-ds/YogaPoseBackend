@@ -1,283 +1,537 @@
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, request, redirect, url_for
 import cv2
 import mediapipe as mp
 import math
-import matplotlib.pyplot as plt
+import time
 
-# Initialize Flask app
 app = Flask(__name__)
 
-# Initialize mediapipe pose class
+# Initialize MediaPipe Pose
 mp_pose = mp.solutions.pose
-
-# Setting up the Pose function
 pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5, model_complexity=1)
+mp_drawing = mp.solutions.drawing_utils
 
-# Initializing mediapipe drawing class, useful for annotation.
-mp_drawing = mp.solutions.drawing_utils 
+# Global variables for pose tracking and messaging
+pose_state = 1
+continue_session = True
+display_message = "Initializing pose tracking..."
+accuracy_message = "Accuracy: 0%"
+state_start_time = None
+hold_duration = 2  # seconds to hold each state
 
-def detectPose(image, pose, display=True):
-    '''
-    This function performs pose detection on an image.
-    Args:
-        image: The input image with a prominent person whose pose landmarks needs to be detected.
-        pose: The pose setup function required to perform the pose detection.
-        display: A boolean value that is if set to true the function displays the original input image, the resultant image, 
-                and the pose landmarks in 3D plot and returns nothing.
-    Returns:
-        output_image: The input image with the detected pose landmarks drawn.
-        landmarks: A list of detected landmarks converted into their original scale.
-    '''
-    
-    # Create a copy of the input image.
+# Session management variables
+session_mode = False
+session_poses = []         # List of poses for the session
+session_index = 0          # Which pose in the session we are on
+session_results = {}       # Pose name -> average accuracy
+current_pose_accuracies = []  # Accumulate accuracy values for current pose
+current_pose = "Tree Pose" # Default pose (will be set by query parameter)
+
+# -----------------------
+# Helper Functions
+# -----------------------
+def detectPose(image, pose):
     output_image = image.copy()
-    
-    # Convert the image from BGR into RGB format.
     imageRGB = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    
-    # Perform the Pose Detection.
     results = pose.process(imageRGB)
-    
-    # Retrieve the height and width of the input image.
     height, width, _ = image.shape
-    
-    # Initialize a list to store the detected landmarks.
     landmarks = []
-    
-    # Check if any landmarks are detected.
     if results.pose_landmarks:
-    
-        # Draw Pose landmarks on the output image.
-        mp_drawing.draw_landmarks(image=output_image, landmark_list=results.pose_landmarks,
-                                connections=mp_pose.POSE_CONNECTIONS)
-        
-        # Iterate over the detected landmarks.
+        mp_drawing.draw_landmarks(image=output_image, landmark_list=results.pose_landmarks, connections=mp_pose.POSE_CONNECTIONS)
         for landmark in results.pose_landmarks.landmark:
-            
-            # Append the landmark into the list.
-            landmarks.append((int(landmark.x * width), int(landmark.y * height),
-                                (landmark.z * width)))
-    
-    
-    return output_image,landmarks
+            landmarks.append((int(landmark.x * width), int(landmark.y * height), landmark.z * width))
+    return output_image, landmarks
 
-
-def calculateAngle(landmark1, landmark2, landmark3):
-    '''
-    This function calculates angle between three different landmarks.
-    Args:
-        landmark1: The first landmark containing the x,y and z coordinates.
-        landmark2: The second landmark containing the x,y and z coordinates.
-        landmark3: The third landmark containing the x,y and z coordinates.
-    Returns:
-        angle: The calculated angle between the three landmarks.
-
-    '''
-
-    # Get the required landmarks coordinates.
-    x1, y1, _ = landmark1
-    x2, y2, _ = landmark2
-    x3, y3, _ = landmark3
-
-    # Calculate the angle between the three points
+def calculateAngle(a, b, c):
+    x1, y1, _ = a
+    x2, y2, _ = b
+    x3, y3, _ = c
     angle = math.degrees(math.atan2(y3 - y2, x3 - x2) - math.atan2(y1 - y2, x1 - x2))
-    
-    # Check if the angle is less than zero.
     if angle < 0:
-
-        # Add 360 to the found angle.
         angle += 360
-    
-    # Return the calculated angle.
     return angle
 
+def calculate_accuracy(current_angles, ideal_angles):
+    total_accuracy = 0
+    for joint, ideal in ideal_angles.items():
+        current = current_angles.get(joint, 0)
+        joint_accuracy = max(0, 100 - abs(ideal - current))
+        total_accuracy += joint_accuracy
+    return total_accuracy / len(ideal_angles)
 
-def classifyPose(landmarks, output_image, display=False):
-    '''
-    This function classifies yoga poses depending upon the angles of various body joints.
-    Args:
-        landmarks: A list of detected landmarks of the person whose pose needs to be classified.
-        output_image: A image of the person with the detected pose landmarks drawn.
-        display: A boolean value that is if set to true the function displays the resultant image with the pose label 
-        written on it and returns nothing.
-    Returns:
-        output_image: The image with the detected pose landmarks drawn and pose label written.
-        label: The classified pose label of the person in the output_image.
+def draw_hold_timer(output_image):
+    global state_start_time, hold_duration
+    if state_start_time is not None:
+        elapsed = time.time() - state_start_time
+        remaining = hold_duration - elapsed
+        if remaining < 0:
+            remaining = 0
+        cv2.putText(output_image, f"Hold: {remaining:.1f}s", (10, 90), cv2.FONT_HERSHEY_PLAIN, 2, (0,255,255), 2)
+    return output_image
 
-    '''
-    
-    # Initialize the label of the pose. It is not known at this stage.
-    label = 'Unknown Pose'
+# -----------------------
+# Pose Sequence Functions
+# -----------------------
 
-    # Specify the color (Red) with which the label will be written on the image.
-    color = (0, 0, 255)
-    
-    # Calculate the required angles.
-    #----------------------------------------------------------------------------------------------------------------
-    
-    # Get the angle between the left shoulder, elbow and wrist points. 
-    left_elbow_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
-                                      landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value],
-                                      landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value])
-    
-    # Get the angle between the right shoulder, elbow and wrist points. 
-    right_elbow_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value],
-                                       landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value],
-                                       landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value])   
-    
-    # Get the angle between the left elbow, shoulder and hip points. 
-    left_shoulder_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value],
-                                         landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
-                                         landmarks[mp_pose.PoseLandmark.LEFT_HIP.value])
+def tree_pose_sequence(landmarks, output_image):
+    global pose_state, display_message, accuracy_message, state_start_time, current_pose_accuracies
+    ideal_angles = {
+        "left_knee": 180,
+        "right_knee": 180,
+        "left_shoulder": 180,
+        "right_shoulder": 180
+    }
+    current_angles = {}
+    current_angles["left_knee"] = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                                                  landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value],
+                                                  landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value])
+    current_angles["right_knee"] = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
+                                                   landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value],
+                                                   landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value])
+    current_angles["left_shoulder"] = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value],
+                                                      landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
+                                                      landmarks[mp_pose.PoseLandmark.LEFT_HIP.value])
+    current_angles["right_shoulder"] = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
+                                                       landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value],
+                                                       landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value])
+    accuracy = calculate_accuracy(current_angles, ideal_angles)
+    accuracy_message = f"Accuracy: {accuracy:.2f}%"
+    current_pose_accuracies.append(accuracy)
 
-    # Get the angle between the right hip, shoulder and elbow points. 
-    right_shoulder_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
-                                          landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value],
-                                          landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value])
+    if pose_state == 1:
+        display_message = "Stand still."
+        if 165 < current_angles["left_knee"] < 195 and 165 < current_angles["right_knee"] < 195:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                pose_state = 2
+                state_start_time = None
+        else:
+            state_start_time = None
 
-    # Get the angle between the left hip, knee and ankle points. 
-    left_knee_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
-                                     landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value],
-                                     landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value])
+    elif pose_state == 2:
+        display_message = "Lift your leg."
+        if current_angles["left_knee"] < 60 or current_angles["right_knee"] < 60:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                pose_state = 3
+                state_start_time = None
+        else:
+            state_start_time = None
 
-    # Get the angle between the right hip, knee and ankle points 
-    right_knee_angle = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
-                                      landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value],
-                                      landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value])
-    
-    #----------------------------------------------------------------------------------------------------------------
-    
-    # Check if it is the warrior II pose or the T pose.
-    # As for both of them, both arms should be straight and shoulders should be at the specific angle.
-    #----------------------------------------------------------------------------------------------------------------
-    
-    if (165 < left_knee_angle < 195) and (165 < right_knee_angle < 195) \
-        and (130 < left_elbow_angle < 180) and (175 < right_elbow_angle < 220) \
-        and (100 < left_shoulder_angle < 200) and (50 < right_shoulder_angle < 130):
-        
-        # Specify the label of the pose as Trikonasana Pose
-        label = 'T Pose'
-    #----------------------------------------------------------------------------------------------------------------
-    
-    # Check if the both arms are straight.
-    if left_elbow_angle > 165 and left_elbow_angle < 195 and right_elbow_angle > 165 and right_elbow_angle < 195:
+    elif pose_state == 3:
+        display_message = "Raise your hands and join them."
+        if 170 < current_angles["left_shoulder"] < 190 and 170 < current_angles["right_shoulder"] < 190:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                pose_state = 4
+                state_start_time = None
+        else:
+            state_start_time = None
 
-        # Check if shoulders are at the required angle.
-        if left_shoulder_angle > 80 and left_shoulder_angle < 110 and right_shoulder_angle > 80 and right_shoulder_angle < 110:
+    elif pose_state == 4:
+        display_message = "Lower your hands."
+        if 15 < current_angles["left_shoulder"] < 40 and 15 < current_angles["right_shoulder"] < 40:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                pose_state = 5
+                state_start_time = None
+        else:
+            state_start_time = None
 
-    # Check if it is the warrior II pose.
-    #----------------------------------------------------------------------------------------------------------------
+    elif pose_state == 5:
+        display_message = "Lower your leg to complete the pose."
+        if 165 < current_angles["left_knee"] < 195 and 165 < current_angles["right_knee"] < 195:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                # In session mode, update final message later; for single-pose, we can show final message.
+                display_message = "Tree Pose completed!"
+                pose_state = 6
+                state_start_time = None
+        else:
+            state_start_time = None
 
-            # Check if one leg is straight.
-            if left_knee_angle > 165 and left_knee_angle < 195 or right_knee_angle > 165 and right_knee_angle < 195:
+    cv2.putText(output_image, display_message, (10, 30), cv2.FONT_HERSHEY_PLAIN, 2, (0,255,0), 2)
+    cv2.putText(output_image, accuracy_message, (10, 60), cv2.FONT_HERSHEY_PLAIN, 2, (0,255,0), 2)
+    output_image = draw_hold_timer(output_image)
+    return output_image
 
-                # Check if the other leg is bended at the required angle.
-                if left_knee_angle > 90 and left_knee_angle < 120 or right_knee_angle > 90 and right_knee_angle < 120:
+def warrior1_sequence(landmarks, output_image):
+    global pose_state, display_message, accuracy_message, state_start_time, current_pose_accuracies
+    ideal_angles = {"front_knee": 90, "back_leg": 180, "arms": 180}
+    current_angles = {}
+    current_angles["front_knee"] = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                                                   landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value],
+                                                   landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value])
+    current_angles["back_leg"] = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
+                                                 landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value],
+                                                 landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value])
+    current_angles["arms"] = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value],
+                                             landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
+                                             landmarks[mp_pose.PoseLandmark.LEFT_HIP.value])
+    accuracy = calculate_accuracy(current_angles, ideal_angles)
+    accuracy_message = f"Accuracy: {accuracy:.2f}%"
+    current_pose_accuracies.append(accuracy)
 
-                    # Specify the label of the pose that is Warrior II pose.
-                    label = 'Warrior II Pose' 
-                        
-    #----------------------------------------------------------------------------------------------------------------
-    
-    # Check if it is the T pose.
-    #----------------------------------------------------------------------------------------------------------------
-    
-            # Check if both legs are straight
-            # if left_knee_angle > 160 and left_knee_angle < 195 and right_knee_angle > 160 and right_knee_angle < 195:
+    if pose_state == 1:
+        display_message = "Stand with feet apart."
+        if current_angles["back_leg"] > 170:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                pose_state = 2
+                state_start_time = None
+        else:
+            state_start_time = None
+    elif pose_state == 2:
+        display_message = "Bend your front knee to 90°."
+        if 80 < current_angles["front_knee"] < 100:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                pose_state = 3
+                state_start_time = None
+        else:
+            state_start_time = None
+    elif pose_state == 3:
+        display_message = "Raise your arms horizontally."
+        if 170 < current_angles["arms"] < 190:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                display_message = "Warrior 1 Pose completed!"
+                pose_state = 6
+                state_start_time = None
+        else:
+            state_start_time = None
 
-            #     # Specify the label of the pose that is tree pose.
-            #     label = 'T Pose'
+    cv2.putText(output_image, display_message, (10, 30), cv2.FONT_HERSHEY_PLAIN, 2, (255,0,0), 2)
+    cv2.putText(output_image, accuracy_message, (10, 60), cv2.FONT_HERSHEY_PLAIN, 2, (255,0,0), 2)
+    output_image = draw_hold_timer(output_image)
+    return output_image
 
-    #----------------------------------------------------------------------------------------------------------------
-    
-    # Check if it is the tree pose.
-    #----------------------------------------------------------------------------------------------------------------
-    
-    # Check if one leg is straight
-    if left_knee_angle > 165 and left_knee_angle < 195 or right_knee_angle > 165 and right_knee_angle < 195:
+def warrior2_sequence(landmarks, output_image):
+    global pose_state, display_message, accuracy_message, state_start_time, current_pose_accuracies
+    ideal_angles = {"front_knee": 90, "back_leg": 180, "arms": 180}
+    current_angles = {}
+    current_angles["front_knee"] = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value],
+                                                   landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value],
+                                                   landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value])
+    current_angles["back_leg"] = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                                                 landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value],
+                                                 landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value])
+    current_angles["arms"] = calculateAngle(landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW.value],
+                                             landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value],
+                                             landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value])
+    accuracy = calculate_accuracy(current_angles, ideal_angles)
+    accuracy_message = f"Accuracy: {accuracy:.2f}%"
+    current_pose_accuracies.append(accuracy)
 
-        # Check if the other leg is bended at the required angle.
-        if left_knee_angle > 315 and left_knee_angle < 335 or right_knee_angle > 25 and right_knee_angle < 45:
+    if pose_state == 1:
+        display_message = "Stand with feet apart."
+        if current_angles["back_leg"] > 170:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                pose_state = 2
+                state_start_time = None
+        else:
+            state_start_time = None
+    elif pose_state == 2:
+        display_message = "Bend your front knee to 90°."
+        if 80 < current_angles["front_knee"] < 100:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                pose_state = 3
+                state_start_time = None
+        else:
+            state_start_time = None
+    elif pose_state == 3:
+        display_message = "Extend your arms outward."
+        if 170 < current_angles["arms"] < 190:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                display_message = "Warrior 2 Pose completed!"
+                pose_state = 6
+                state_start_time = None
+        else:
+            state_start_time = None
 
-            # Specify the label of the pose that is tree pose.
-            label = 'Tree Pose'
+    cv2.putText(output_image, display_message, (10, 30), cv2.FONT_HERSHEY_PLAIN, 2, (0,0,255), 2)
+    cv2.putText(output_image, accuracy_message, (10, 60), cv2.FONT_HERSHEY_PLAIN, 2, (0,0,255), 2)
+    output_image = draw_hold_timer(output_image)
+    return output_image
 
-    #----------------------------------------------------------------------------------------------------------------
-    
-   
-   
-    # Check if the pose is classified successfully
-    if label != 'Unknown Pose':
-        
-        # Update the color (to green) with which the label will be written on the image.
-        color = (0, 255, 0)  
-    
-    # Write the label on the output image. 
-    cv2.putText(output_image, label, (10, 30),cv2.FONT_HERSHEY_PLAIN, 2, color, 2)
-    
-    # Check if the resultant image is specified to be displayed.
-    if display:
-    
-        # Display the resultant image.
-        plt.figure(figsize=[10,10])
-        plt.imshow(output_image[:,:,::-1]);plt.title("Output Image");plt.axis('off');
-        
-    else:
-        
-        # Return the output image and the classified label.
-        return output_image, label
+def triangle_sequence(landmarks, output_image):
+    global pose_state, display_message, accuracy_message, state_start_time, current_pose_accuracies
+    ideal_angles = {"side_stretch": 90, "leg": 180}
+    current_angles = {}
+    current_angles["side_stretch"] = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
+                                                    landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                                                    landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value])
+    current_angles["leg"] = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                                           landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value],
+                                           landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value])
+    accuracy = calculate_accuracy(current_angles, ideal_angles)
+    accuracy_message = f"Accuracy: {accuracy:.2f}%"
+    current_pose_accuracies.append(accuracy)
 
-# Release the VideoCapture object and close the windows
+    if pose_state == 1:
+        display_message = "Stand with feet apart."
+        if current_angles["leg"] > 170:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                pose_state = 2
+                state_start_time = None
+        else:
+            state_start_time = None
+    elif pose_state == 2:
+        display_message = "Bend forward and reach toward your foot."
+        if 80 < current_angles["side_stretch"] < 100:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                display_message = "Triangle Pose completed!"
+                pose_state = 6
+                state_start_time = None
+        else:
+            state_start_time = None
+
+    cv2.putText(output_image, display_message, (10, 30), cv2.FONT_HERSHEY_PLAIN, 2, (255,255,0), 2)
+    cv2.putText(output_image, accuracy_message, (10, 60), cv2.FONT_HERSHEY_PLAIN, 2, (255,255,0), 2)
+    output_image = draw_hold_timer(output_image)
+    return output_image
+
+def lord_of_dance_sequence(landmarks, output_image):
+    global pose_state, display_message, accuracy_message, state_start_time, current_pose_accuracies
+    ideal_angles = {"leg_raise": 90, "arm_raise": 180}
+    current_angles = {}
+    current_angles["leg_raise"] = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_HIP.value],
+                                                 landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value],
+                                                 landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value])
+    current_angles["arm_raise"] = calculateAngle(landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value],
+                                                 landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value],
+                                                 landmarks[mp_pose.PoseLandmark.LEFT_HIP.value])
+    accuracy = calculate_accuracy(current_angles, ideal_angles)
+    accuracy_message = f"Accuracy: {accuracy:.2f}%"
+    current_pose_accuracies.append(accuracy)
+
+    if pose_state == 1:
+        display_message = "Stand straight."
+        if current_angles["arm_raise"] > 170:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                pose_state = 2
+                state_start_time = None
+        else:
+            state_start_time = None
+    elif pose_state == 2:
+        display_message = "Lift your leg to the side."
+        if 80 < current_angles["leg_raise"] < 100:
+            if state_start_time is None:
+                state_start_time = time.time()
+            elif time.time() - state_start_time >= hold_duration:
+                display_message = "Lord of Dance Pose completed!"
+                pose_state = 6
+                state_start_time = None
+        else:
+            state_start_time = None
+
+    cv2.putText(output_image, display_message, (10, 30), cv2.FONT_HERSHEY_PLAIN, 2, (0,255,255), 2)
+    cv2.putText(output_image, accuracy_message, (10, 60), cv2.FONT_HERSHEY_PLAIN, 2, (0,255,255), 2)
+    output_image = draw_hold_timer(output_image)
+    return output_image
+
+# -----------------------
+# Session Dispatcher
+# -----------------------
+def session_pose_sequence(landmarks, output_image):
+    global current_pose, pose_state, session_index, session_poses, session_results, current_pose_accuracies, display_message, continue_session
+
+    # If all poses have been processed, update final message and stop
+    if session_index >= len(session_poses):
+        overall_accuracy = sum(session_results.values()) / len(session_results) if session_results else 0
+        medal = ""
+        if 80 <= overall_accuracy < 90:
+            medal = "Bronze"
+        elif 90 <= overall_accuracy < 93:
+            medal = "Silver"
+        elif 93 <= overall_accuracy < 96:
+            medal = "Gold"
+        elif overall_accuracy >= 96:
+            medal = "Diamond"
+
+        display_message = f"Session Completed! Overall Accuracy: {overall_accuracy:.2f}%. Award: {medal}"
+        continue_session = False  # Stop the webcam feed
+        return output_image
+
+    # Process the current pose
+    if current_pose == "Tree Pose":
+        output_image = tree_pose_sequence(landmarks, output_image)
+    elif current_pose == "Warrior 1":
+        output_image = warrior1_sequence(landmarks, output_image)
+    elif current_pose == "Warrior 2":
+        output_image = warrior2_sequence(landmarks, output_image)
+    elif current_pose == "Triangle Pose":
+        output_image = triangle_sequence(landmarks, output_image)
+    elif current_pose == "Lord of Dance Pose":
+        output_image = lord_of_dance_sequence(landmarks, output_image)
+
+    # When the current pose is completed, move to the next one
+    if pose_state == 6:
+        avg_accuracy = sum(current_pose_accuracies) / len(current_pose_accuracies) if current_pose_accuracies else 0
+        session_results[current_pose] = avg_accuracy  
+        session_index += 1  # Move to the next pose
+        if session_index < len(session_poses):
+            current_pose = session_poses[session_index]
+            display_message = f"Starting {current_pose}..."
+            pose_state = 1       # Reset state for the new pose
+            current_pose_accuracies = []  # Reset accuracy tracking
+        else:
+            # Last pose has been completed – update final message.
+            overall_accuracy = sum(session_results.values()) / len(session_results) if session_results else 0
+            medal = ""
+            if 80 <= overall_accuracy < 90:
+                medal = "Bronze"
+            elif 90 <= overall_accuracy < 93:
+                medal = "Silver"
+            elif 93 <= overall_accuracy < 96:
+                medal = "Gold"
+            elif overall_accuracy >= 96:
+                medal = "Diamond"
+            display_message = f"Session Completed! Overall Accuracy: {overall_accuracy:.2f}%. Award: {medal}"
+            continue_session = False
+
+    return output_image
+
+# -----------------------
+# Webcam Feed with Pose Detection
+# -----------------------
 def webcam_feed():
-    # Initialize the VideoCapture object to read from the webcam
-    camera_video = cv2.VideoCapture('http://100.93.186.46:8080/video')
+    camera_video = cv2.VideoCapture(0)
     camera_video.set(3, 1380)
     camera_video.set(4, 960)
-
-    while camera_video.isOpened():
-        # Read a frame
+    global continue_session, session_mode
+    while camera_video.isOpened() and continue_session:
         ok, frame = camera_video.read()
-
         if not ok:
             continue
-
-        # Flip the frame horizontally for natural (selfie-view) visualization
         frame = cv2.flip(frame, 1)
-
-        # Get the width and height of the frame
-        frame_height, frame_width, _ = frame.shape
-
-        # Resize the frame while keeping the aspect ratio
-        frame = cv2.resize(frame, (int(frame_width * (640 / frame_height)), 640))
-
-        # Perform Pose landmark detection
-        frame, landmarks = detectPose(frame, pose, display=False)
-
+        frame, landmarks = detectPose(frame, pose)
         if landmarks:
-            # Perform the Pose Classification
-            frame, _ = classifyPose(landmarks, frame, display=False)
-
-        # Convert the frame to JPEG format
+            if session_mode:
+                frame = session_pose_sequence(landmarks, frame)
+            else:
+                if current_pose == "Tree Pose":
+                    frame = tree_pose_sequence(landmarks, frame)
+                elif current_pose == "Warrior 1":
+                    frame = warrior1_sequence(landmarks, frame)
+                elif current_pose == "Warrior 2":
+                    frame = warrior2_sequence(landmarks, frame)
+                elif current_pose == "Triangle Pose":
+                    frame = triangle_sequence(landmarks, frame)
+                elif current_pose == "Lord of Dance Pose":
+                    frame = lord_of_dance_sequence(landmarks, frame)
+                else:
+                    frame = tree_pose_sequence(landmarks, frame)
         ret, jpeg = cv2.imencode('.jpg', frame)
         frame = jpeg.tobytes()
-
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
     camera_video.release()
     cv2.destroyAllWindows()
 
+# -----------------------
+# Flask Routes
+# -----------------------
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/yoga_try')
 def yoga_try():
-    return render_template('yoga_try.html')
+    global session_mode, continue_session, current_pose, pose_state, current_pose_accuracies, display_message
+    continue_session = True
+    pose_state = 1
+    current_pose_accuracies = []
+    selected_pose = request.args.get('pose')
+    if selected_pose:
+        # Single-pose mode; disable session mode
+        session_mode = False
+        current_pose = selected_pose
+    # Otherwise, leave session_mode as set by /start_session
+    # Map each pose to its representative image file.
+    pose_images = {
+        "Tree Pose": "Tree pose.png",
+        "Warrior 1": "Warrior1.jpg",
+        "Warrior 2": "Warrior2.jpg",
+        "Triangle Pose": "TrianglePose.jpg",
+        "Lord of Dance Pose": "LordOfDance.jpg",
+        "Trikonasana": "Trikonasana.jpg",
+        "Virabadrasana": "Virabadrasana.png",
+        "Vrikshasana": "Vrikshasana.png",
+        "Bhujangasana": "Bhujangasana.png",
+        "Sukhasana": "Sukhasana.png",
+        "Chakrasana": "Chakrasana.png",
+        "Balasana": "Balasana.png",
+        "Shavasana": "Shavasana.png"
+    }
+    pose_img = pose_images.get(current_pose, "Tree pose.png")
+    return render_template('yoga_try.html', pose_img=pose_img, current_pose=current_pose, display_message=display_message)
 
 @app.route('/video_feed1')
 def video_feed1():
     return Response(webcam_feed(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/pose_message')
+def pose_message():
+    return display_message
+
+@app.route('/session')
+def session():
+    return render_template('session.html')
+
+@app.route('/start_session', methods=['POST'])
+def start_session():
+    global session_mode, session_poses, session_index, current_pose, session_results, pose_state, current_pose_accuracies, continue_session
+    selected = request.form.getlist('poses')
+    if not selected:
+        return redirect(url_for('session'))
+    session_poses = selected
+    session_mode = True
+    session_index = 0
+    current_pose = session_poses[0]
+    session_results = {}
+    pose_state = 1
+    current_pose_accuracies = []
+    continue_session = True
+    return redirect(url_for('yoga_try'))
+
+@app.route('/session_results')
+def session_results_page():
+    overall_accuracy = sum(session_results.values()) / len(session_results) if session_results else 0
+    medal = ""
+    if 80 <= overall_accuracy < 90:
+        medal = "Bronze"
+    elif 90 <= overall_accuracy < 93:
+        medal = "Silver"
+    elif 93 <= overall_accuracy < 96:
+        medal = "Gold"
+    elif overall_accuracy >= 96:
+        medal = "Diamond"
+    return render_template('session_results.html', results=session_results, overall_accuracy=overall_accuracy, medal=medal)
+
+@app.route('/meditation')
+def meditation():
+    return render_template('meditation.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
