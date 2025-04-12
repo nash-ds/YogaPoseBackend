@@ -10,7 +10,6 @@ This is a web application that uses computer vision to detect and evaluate yoga 
 - Session management with multiple pose sequences
 - Performance tracking with medal system (Bronze, Silver, Gold, Diamond)
 - Meditation sound player with nature sounds
-- Model evaluation API for testing pose detection accuracy
 - Session history tracking
 
 ## Tech Stack
