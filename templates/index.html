@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Yoga Asanas</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='yoga-style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f2f2f2;
+        }
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 15px;
+            text-align: center;
+        }
+        nav {
+            display: flex;
+            justify-content: center;
+            background-color: #555;
+            padding: 10px 0;
+        }
+        nav a {
+            color: #fff;
+            margin: 0 15px;
+            text-decoration: none;
+            font-size: 16px;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+        .wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background-color: #fff;
+            width: 300px;
+            margin: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: scale(1.02);
+        }
+        .card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .card-content {
+            padding: 15px;
+        }
+        .card h2 {
+            margin: 0;
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+        .card p {
+            font-size: 14px;
+            margin-bottom: 15px;
+            color: #555;
+        }
+        .card .actions {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .card .actions button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .card .actions button:hover {
+            background-color: #555;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Interactive Yoga Asanas</h1>
+    </header>
+    <nav>
+        <a href="{{ url_for('index') }}">Home</a>
+        <a href="{{ url_for('session') }}">Yoga Session</a>
+        <a href="{{ url_for('meditation') }}">Meditation</a>
+    </nav>
+    <div class="wrapper">
+        <!-- Tree Pose Card -->
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Tree pose.png') }}" alt="Tree Pose">
+            <div class="card-content">
+                <h2>Tree Pose</h2>
+                <!-- <p>A calming balancing pose that improves focus and stability. Follow step-by-step guidance.</p> -->
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Tree%20Pose">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <!-- Warrior 1 Card -->
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Warrior 1.png') }}" alt="Warrior 1">
+            <div class="card-content">
+                <h2>Warrior 1</h2>
+                <!-- <p>A dynamic pose that builds strength, stability, and focus with guided progression.</p> -->
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Warrior%201">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <!-- Warrior 2 Card -->
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Warrior 2.png') }}" alt="Warrior 2">
+            <div class="card-content">
+                <h2>Warrior 2</h2>
+                <!-- <p>A powerful stance to improve balance and endurance with step-by-step instructions.</p> -->
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Warrior%202">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <!-- Triangle Pose Card -->
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Triangle Pose.png') }}" alt="Triangle Pose">
+            <div class="card-content">
+                <h2>Triangle Pose</h2>
+                <!-- <p>A stretching pose to enhance flexibility and strength with detailed guidance.</p> -->
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Triangle%20Pose">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <!-- Lord of Dance Pose Card -->
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/LordOfDance.png') }}" alt="Lord of Dance Pose">
+            <div class="card-content">
+                <h2>Lord of Dance Pose</h2>
+                <!-- <p>A graceful pose that challenges balance and coordination with a guided sequence.</p> -->
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Lord%20of%20Dance%20Pose">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <!-- Additional Original Poses -->
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Trikonasana.jpg') }}" alt="Trikonasana">
+            <div class="card-content">
+                <h2>Trikonasana</h2>
+                <p>Helps reduce body weight, strengthens limbs and improves digestion.</p>
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Trikonasana">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Virabadrasana.png') }}" alt="Virabadrasana">
+            <div class="card-content">
+                <h2>Virabadrasana</h2>
+                <p>Strengthens legs, improves balance and focus with guided steps.</p>
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Virabadrasana">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Vrikshasana.png') }}" alt="Vrikshasana">
+            <div class="card-content">
+                <h2>Vrikshasana</h2>
+                <p>Improves back and leg strength, enhances balance with step-by-step instruction.</p>
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Vrikshasana">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Bhujangasana.png') }}" alt="Bhujangasana">
+            <div class="card-content">
+                <h2>Bhujangasana</h2>
+                <p>Improves blood circulation and strengthens the lower back and arms.</p>
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Bhujangasana">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Sukhasana.png') }}" alt="Sukhasana">
+            <div class="card-content">
+                <h2>Sukhasana</h2>
+                <p>Calms the mind and improves posture. Follow our guided sequence for proper form.</p>
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Sukhasana">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Chakrasana.png') }}" alt="Chakrasana">
+            <div class="card-content">
+                <h2>Chakrasana</h2>
+                <p>Helps cure back and kidney pain while stimulating thyroid and pituitary glands.</p>
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Chakrasana">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Balasana.png') }}" alt="Balasana">
+            <div class="card-content">
+                <h2>Balasana</h2>
+                <p>A relaxing pose to soothe the mind, body and emotions.</p>
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Balasana">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <img src="{{ url_for('static', filename='img/Shavasana.png') }}" alt="Shavasana">
+            <div class="card-content">
+                <h2>Shavasana</h2>
+                <p>A relaxation pose to rejuvenate the body, improve memory and enhance concentration.</p>
+                <div class="actions">
+                    <a href="{{ url_for('yoga_try') }}?pose=Shavasana">
+                        <button>Try Now</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

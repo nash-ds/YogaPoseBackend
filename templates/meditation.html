@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Meditation</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+        input, button { padding: 10px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h1>Meditation Session</h1>
+    <form id="meditationForm">
+        <label for="duration">Select Duration (in minutes):</label>
+        <input type="number" id="duration" name="duration" min="1" max="60" required>
+        <button type="submit">Start Meditation</button>
+    </form>
+    <div id="meditationArea" style="display:none;">
+        <h2>Meditation in Progress...</h2>
+        <p id="timer">00:00</p>
+        <audio id="meditationMusic" loop>
+            <source src="{{ url_for('static', filename='audio/calm.mp3') }}" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+    <script>
+        const form = document.getElementById('meditationForm');
+        const meditationArea = document.getElementById('meditationArea');
+        const timerDisplay = document.getElementById('timer');
+        const meditationMusic = document.getElementById('meditationMusic');
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const duration = parseInt(document.getElementById('duration').value);
+            form.style.display = 'none';
+            meditationArea.style.display = 'block';
+            meditationMusic.play();
+            let totalSeconds = duration * 60;
+            const interval = setInterval(() => {
+                const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+                const seconds = String(totalSeconds % 60).padStart(2, '0');
+                timerDisplay.textContent = minutes + ':' + seconds;
+                if (totalSeconds <= 0) {
+                    clearInterval(interval);
+                    meditationMusic.pause();
+                    timerDisplay.textContent = "Session Complete";
+                }
+                totalSeconds--;
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

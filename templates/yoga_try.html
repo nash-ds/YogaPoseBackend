@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pose Detection - {{ current_pose }}</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      font-family: Arial, sans-serif;
+    }
+    .centered {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh; /* Take full height of viewport */
+      width: 100vw;  /* Take full width of viewport */
+      padding: 0;    /* Remove any padding */
+      margin: 0;     /* Remove any margin */
+    }
+    img {
+      width: 100%;   /* Ensure image takes full width */
+      height: 100%;  /* Ensure image takes full height */
+      object-fit: cover; /* Maintain aspect ratio without stretching */
+    }
+    .scroll-container {
+      background-color: #ffffff;
+      height: 80vh;
+      width: 300px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .scroll-container img {
+      width: 100%;
+      height: auto;
+      margin-bottom: 20px;
+    }
+    #feedback {
+      font-size: 20px;
+    }
+    .buttons {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+    }
+    .buttons button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="centered">
+    <img src="{{ url_for('video_feed1') }}" alt="Pose Detection">
+  </div>
+  <div class="scroll-container">
+    <img id="poseImage" src="{{ url_for('static', filename='img/' + pose_img) }}" alt="{{ current_pose }}">
+    <div id="feedback">
+      <h2>Instructions:</h2>
+      <p id="pose-message">Initializing pose tracking...</p>
+    </div>
+    <div class="buttons">
+      <button id="resultsBtn" style="display:none;">View Session Results</button>
+    </div>
+  </div>
+  
+  <script>
+    document.getElementById('resultsBtn').addEventListener('click', function() {
+      window.location.href = "{{ url_for('session_results_page') }}";
+    });
+    
+    let lastMessage = "";
+    async function updatePoseMessage() {
+      const response = await fetch('/pose_message');
+      const message = await response.text();
+      document.getElementById('pose-message').textContent = message;
+      
+      if (message !== lastMessage) {
+        speakMessage(message);
+        lastMessage = message;
+        updatePoseImage(message);
+      }
+      
+      if (message.includes("Session")) {
+        document.getElementById('resultsBtn').style.display = "block";
+      }
+    }
+    
+    function updatePoseImage(message) {
+      const poseImages = {
+        "Tree Pose": "Tree pose.png",
+        "Warrior 1": "Warrior 1.png",
+        "Warrior 2": "Warrior 2.png",
+        "Triangle Pose": "Triangle pose.png",
+        "Lord of Dance Pose": "LordOfDance.png"
+      };
+      
+      for (const pose in poseImages) {
+        if (message.includes(pose)) {
+          document.getElementById('poseImage').src = "{{ url_for('static', filename='img/') }}" + poseImages[pose];
+          break;
+        }
+      }
+    }
+    
+    function speakMessage(msg) {
+      if ('speechSynthesis' in window) {
+        let utterance = new SpeechSynthesisUtterance(msg);
+        speechSynthesis.speak(utterance);
+      }
+    }
+    
+    setInterval(updatePoseMessage, 1000);
+  </script>
+</body>
+</html>

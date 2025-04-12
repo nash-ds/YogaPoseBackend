@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yoga Flow - Diet Tracker</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='yoga-style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .diet-header {
+            background: var(--secondary-gradient);
+            color: white;
+            text-align: center;
+            padding: 60px 20px;
+            margin-bottom: 40px;
+        }
+        
+        .diet-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+        
+        .meal-form {
+            flex: 1;
+            min-width: 300px;
+            background-color: white;
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--box-shadow-md);
+            padding: 30px;
+        }
+        
+        .meal-log {
+            flex: 2;
+            min-width: 300px;
+            background-color: white;
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--box-shadow-md);
+            padding: 30px;
+        }
+        
+        .meal-type {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .meal-type-btn {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border: 1px solid var(--gray-color);
+            border-radius: var(--border-radius-md);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .meal-type-btn.active {
+            background: var(--secondary-gradient);
+            color: white;
+            border-color: var(--secondary-color);
+        }
+        
+        .nutrition-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .nutrition-card {
+            background-color: var(--light-color);
+            border-radius: var(--border-radius-md);
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .nutrition-value {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .meal-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid var(--gray-color);
+            transition: background-color 0.3s;
+        }
+        
+        .meal-item:hover {
+            background-color: var(--gray-color);
+        }
+        
+        .meal-icon {
+            width: 40px;
+            height: 40px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+        }
+        
+        .meal-info {
+            flex-grow: 1;
+        }
+        
+        .meal-name {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .meal-time {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .meal-calories {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .food-suggestions {
+            margin-top: 30px;
+        }
+        
+        .suggestion-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid var(--gray-color);
+            border-radius: var(--border-radius-md);
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .suggestion-item:hover {
+            background-color: var(--gray-color);
+            transform: translateX(5px);
+        }
+        
+        .suggestion-image {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: var(--border-radius-sm);
+            margin-right: 15px;
+        }
+        
+        .suggestion-info {
+            flex-grow: 1;
+        }
+        
+        .suggestion-name {
+            font-weight: 500;
+            margin-bottom: 3px;
+        }
+        
+        .suggestion-nutrients {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .water-tracker {
+            margin-top: 40px;
+            text-align: center;
+        }
+        
+        .water-glasses {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .water-glass {
+            width: 30px;
+            height: 40px;
+            background-color: var(--gray-color);
+            border-radius: 5px 5px 15px 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .water-glass.filled {
+            background-color: #2196F3;
+        }
+        
+        .water-glass::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0;
+            background-color: rgba(33, 150, 243, 0.5);
+            border-radius: 0 0 15px 15px;
+            transition: height 0.3s;
+        }
+        
+        .water-glass.filled::before {
+            height: 100%;
+            border-radius: 5px 5px 15px 15px;
+        }
+        
+        .water-goal-text {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .diet-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <a href="{{ url_for('index') }}" class="navbar-brand">
+            <i class="fas fa-om"></i> Yoga Flow
+        </a>
+        <ul class="navbar-links">
+            <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a></li>
+            <li><a href="{{ url_for('session') }}"><i class="fas fa-calendar-alt"></i> Sessions</a></li>
+            <li><a href="{{ url_for('meditation') }}"><i class="fas fa-spa"></i> Meditation</a></li>
+            <li><a href="{{ url_for('diet_tracker') }}"><i class="fas fa-apple-alt"></i> Diet</a></li>
+            <li><a href="{{ url_for('progress') }}"><i class="fas fa-chart-line"></i> Progress</a></li>
+            <li><a href="{{ url_for('sign_in') }}"><i class="fas fa-sign-in-alt"></i> Sign In</a></li>
+        </ul>
+    </nav>
+    
+    <div class="diet-header">
+        <h1>Diet Tracker</h1>
+        <p>Track your nutrition to complement your yoga practice</p>
+    </div>
+    
+    <div class="container">
+        <div class="diet-container">
+            <div class="meal-form">
+                <h2>Log Your Meal</h2>
+                <form id="food-log-form">
+                    <div class="form-group">
+                        <label for="meal-type">Meal Type</label>
+                        <div class="meal-type">
+                            <div class="meal-type-btn active" data-meal="breakfast">
+                                <i class="fas fa-coffee"></i>
+                                <div>Breakfast</div>
+                            </div>
+                            <div class="meal-type-btn" data-meal="lunch">
+                                <i class="fas fa-utensils"></i>
+                                <div>Lunch</div>
+                            </div>
+                            <div class="meal-type-btn" data-meal="dinner">
+                                <i class="fas fa-moon"></i>
+                                <div>Dinner</div>
+                            </div>
+                            <div class="meal-type-btn" data-meal="snack">
+                                <i class="fas fa-cookie"></i>
+                                <div>Snack</div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="meal-type-input" name="mealType" value="breakfast">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="food-search">Search Food</label>
+                        <div class="search-bar">
+                            <input type="text" id="food-search" class="form-control" placeholder="Type to search foods...">
+                            <button type="button" class="search-btn">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="food-name">Food Item</label>
+                        <input type="text" id="food-name" name="foodName" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="portion-size">Portion</label>
+                            <input type="number" id="portion-size" name="portionSize" class="form-control" min="0.25" step="0.25" value="1" required>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="portion-unit">Unit</label>
+                            <select id="portion-unit" name="portionUnit" class="form-control">
+                                <option value="serving">serving</option>
+                                <option value="cup">cup</option>
+                                <option value="oz">oz</option>
+                                <option value="gram">gram</option>
+                                <option value="tbsp">tbsp</option>
+                                <option value="tsp">tsp</option>
+                                <option value="piece">piece</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="calories">Calories</label>
+                            <input type="number" id="calories" name="calories" class="form-control" min="0" required>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="protein">Protein (g)</label>
+                            <input type="number" id="protein" name="protein" class="form-control" min="0" step="0.1" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="carbs">Carbs (g)</label>
+                            <input type="number" id="carbs" name="carbs" class="form-control" min="0" step="0.1" required>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="fat">Fat (g)</label>
+                            <input type="number" id="fat" name="fat" class="form-control" min="0" step="0.1" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="meal-notes">Notes (optional)</label>
+                        <textarea id="meal-notes" name="notes" class="form-control" rows="2" placeholder="Add any notes about this meal..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="fas fa-plus-circle"></i> Add to Log
+                    </button>
+                </form>
+                
+                <div class="food-suggestions">
+                    <h3>Quick Add</h3>
+                    <div class="suggestion-item" data-food="Yogurt" data-calories="120" data-protein="12" data-carbs="7" data-fat="5">
+                        <img src="{{ url_for('static', filename='img/foods/yogurt.jpg') }}" alt="Yogurt" class="suggestion-image">
+                        <div class="suggestion-info">
+                            <div class="suggestion-name">Greek Yogurt</div>
+                            <div class="suggestion-nutrients">120 cal | 12g protein | 7g carbs | 5g fat</div>
+                        </div>
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    
+                    <div class="suggestion-item" data-food="Oatmeal" data-calories="150" data-protein="5" data-carbs="27" data-fat="2.5">
+                        <img src="{{ url_for('static', filename='img/foods/oatmeal.jpg') }}" alt="Oatmeal" class="suggestion-image">
+                        <div class="suggestion-info">
+                            <div class="suggestion-name">Oatmeal with Berries</div>
+                            <div class="suggestion-nutrients">150 cal | 5g protein | 27g carbs | 2.5g fat</div>
+                        </div>
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    
+                    <div class="suggestion-item" data-food="Salmon" data-calories="206" data-protein="22" data-carbs="0" data-fat="13">
+                        <img src="{{ url_for('static', filename='img/foods/salmon.jpg') }}" alt="Salmon" class="suggestion-image">
+                        <div class="suggestion-info">
+                            <div class="suggestion-name">Grilled Salmon (3oz)</div>
+                            <div class="suggestion-nutrients">206 cal | 22g protein | 0g carbs | 13g fat</div>
+                        </div>
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    
+                    <div class="suggestion-item" data-food="Avocado Toast" data-calories="230" data-protein="6" data-carbs="24" data-fat="14">
+                        <img src="{{ url_for('static', filename='img/foods/avocado-toast.jpg') }}" alt="Avocado Toast" class="suggestion-image">
+                        <div class="suggestion-info">
+                            <div class="suggestion-name">Avocado Toast</div>
+                            <div class="suggestion-nutrients">230 cal | 6g protein | 24g carbs | 14g fat</div>
+                        </div>
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                </div>
+                
+                <div class="water-tracker">
+                    <h3 class="mb-3">Water Intake</h3>
+                    
+                    <div class="water-glasses">
+                        <div class="water-glass filled"></div>
+                        <div class="water-glass filled"></div>
+                        <div class="water-glass filled"></div>
+                        <div class="water-glass"></div>
+                        <div class="water-glass"></div>
+                        <div class="water-glass"></div>
+                        <div class="water-glass"></div>
+                        <div class="water-glass"></div>
+                    </div>
+                    
+                    <div class="water-goal-text">3/8 glasses (Goal: 8 glasses)</div>
+                </div>
+            </div>
+            
+            <div class="meal-log">
+                <h2 class="mb-3">Today's Meals</h2>
+                
+                <div class="meal-item">
+                    <div class="meal-icon">
+                        <i class="fas fa-coffee"></i>
+                    </div>
+                    <div class="meal-info">
+                        <div class="meal-name">Greek Yogurt with Honey</div>
+                        <div class="meal-time">Breakfast - 8:30 AM</div>
+                    </div>
+                    <div class="meal-calories">180 kcal</div>
+                </div>
+                
+                <div class="meal-item">
+                    <div class="meal-icon">
+                        <i class="fas fa-cookie-bite"></i>
+                    </div>
+                    <div class="meal-info">
+                        <div class="meal-name">Banana</div>
+                        <div class="meal-time">Snack - 10:45 AM</div>
+                    </div>
+                    <div class="meal-calories">105 kcal</div>
+                </div>
+                
+                <div class="meal-item">
+                    <div class="meal-icon">
+                        <i class="fas fa-utensils"></i>
+                    </div>
+                    <div class="meal-info">
+                        <div class="meal-name">Quinoa Salad with Avocado</div>
+                        <div class="meal-time">Lunch - 1:15 PM</div>
+                    </div>
+                    <div class="meal-calories">320 kcal</div>
+                </div>
+                
+                <!-- Display meals from database here with Jinja -->
+                {% for meal in meals %}
+                <div class="meal-item">
+                    <div class="meal-icon">
+                        <i class="fas fa-utensils"></i>
+                    </div>
+                    <div class="meal-info">
+                        <div class="meal-name">{{ meal }}</div>
+                        <div class="meal-time">Added meal</div>
+                    </div>
+                    <div class="meal-calories">-- kcal</div>
+                </div>
+                {% endfor %}
+                
+                <div class="nutrition-summary">
+                    <div class="nutrition-card">
+                        <div class="nutrition-value">605</div>
+                        <div>Calories</div>
+                    </div>
+                    
+                    <div class="nutrition-card">
+                        <div class="nutrition-value">28g</div>
+                        <div>Protein</div>
+                    </div>
+                    
+                    <div class="nutrition-card">
+                        <div class="nutrition-value">82g</div>
+                        <div>Carbs</div>
+                    </div>
+                    
+                    <div class="nutrition-card">
+                        <div class="nutrition-value">18g</div>
+                        <div>Fat</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Meal type selector
+        const mealTypeBtns = document.querySelectorAll('.meal-type-btn');
+        const mealTypeInput = document.getElementById('meal-type-input');
+        
+        mealTypeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                mealTypeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                mealTypeInput.value = btn.getAttribute('data-meal');
+            });
+        });
+        
+        // Water glass tracker
+        const waterGlasses = document.querySelectorAll('.water-glass');
+        let waterCount = 3; // Starting with 3 filled glasses
+        
+        waterGlasses.forEach((glass, index) => {
+            glass.addEventListener('click', () => {
+                if (index < waterCount) {
+                    // Removing water
+                    for (let i = waterCount - 1; i >= index; i--) {
+                        waterGlasses[i].classList.remove('filled');
+                    }
+                    waterCount = index;
+                } else {
+                    // Adding water
+                    for (let i = waterCount; i <= index; i++) {
+                        waterGlasses[i].classList.add('filled');
+                    }
+                    waterCount = index + 1;
+                }
+                
+                document.querySelector('.water-goal-text').textContent = 
+                    `${waterCount}/8 glasses (Goal: 8 glasses)`;
+            });
+        });
+        
+        // Food suggestion quick add (would need AJAX in a real implementation)
+        const suggestionItems = document.querySelectorAll('.suggestion-item');
+        
+        suggestionItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const foodName = item.querySelector('.suggestion-name').textContent;
+                const nutrientText = item.querySelector('.suggestion-nutrients').textContent;
+                
+                // Parse nutrient text
+                const caloriesMatch = nutrientText.match(/(\d+)\s*kcal/);
+                const proteinMatch = nutrientText.match(/(\d+)g\s*protein/);
+                const carbsMatch = nutrientText.match(/(\d+)g\s*carbs/);
+                const fatMatch = nutrientText.match(/(\d+)g\s*fat/);
+                
+                document.getElementById('food-name').value = foodName;
+                
+                if (caloriesMatch) document.getElementById('calories').value = caloriesMatch[1];
+                if (proteinMatch) document.getElementById('protein').value = proteinMatch[1];
+                if (carbsMatch) document.getElementById('carbs').value = carbsMatch[1];
+                if (fatMatch) document.getElementById('fat').value = fatMatch[1];
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yoga Flow - Progress Tracker</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='yoga-style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .progress-header {
+            background: var(--primary-gradient);
+            color: white;
+            text-align: center;
+            padding: 60px 20px;
+            margin-bottom: 40px;
+        }
+        
+        .tab-navigation {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--gray-color);
+        }
+        
+        .tab-btn {
+            padding: 12px 24px;
+            margin: 0 10px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .calendar {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--box-shadow-md);
+        }
+        
+        .month-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .month-name {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+        }
+        
+        .weekday {
+            text-align: center;
+            font-weight: 500;
+            color: var(--dark-color);
+            margin-bottom: 10px;
+        }
+        
+        .day {
+            height: 80px;
+            background-color: var(--light-color);
+            border-radius: var(--border-radius-sm);
+            padding: 5px;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .day:hover {
+            background-color: var(--gray-color);
+        }
+        
+        .day-number {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .has-activity {
+            position: relative;
+        }
+        
+        .has-activity::after {
+            content: '';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+        }
+        
+        .activity-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 3px;
+        }
+        
+        .charts-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .chart-card {
+            background-color: white;
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--box-shadow-md);
+            padding: 20px;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .progress-stats {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background-color: white;
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--box-shadow-sm);
+            padding: 20px;
+            width: 200px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--box-shadow-md);
+        }
+        
+        .stat-icon {
+            font-size: 36px;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .achievement-badges {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 40px;
+        }
+        
+        .badge {
+            background-color: white;
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--box-shadow-sm);
+            padding: 20px;
+            width: 150px;
+            text-align: center;
+        }
+        
+        .badge-icon {
+            font-size: 40px;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .badge-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .badge-description {
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <a href="{{ url_for('index') }}" class="navbar-brand">
+            <i class="fas fa-om"></i> Yoga Flow
+        </a>
+        <ul class="navbar-links">
+            <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a></li>
+            <li><a href="{{ url_for('session') }}"><i class="fas fa-calendar-alt"></i> Sessions</a></li>
+            <li><a href="{{ url_for('meditation') }}"><i class="fas fa-spa"></i> Meditation</a></li>
+            <li><a href="{{ url_for('diet_tracker') }}"><i class="fas fa-apple-alt"></i> Diet</a></li>
+            <li><a href="{{ url_for('progress') }}"><i class="fas fa-chart-line"></i> Progress</a></li>
+            <li><a href="{{ url_for('sign_in') }}"><i class="fas fa-sign-in-alt"></i> Sign In</a></li>
+        </ul>
+    </nav>
+    
+    <div class="progress-header">
+        <h1>Your Yoga Journey</h1>
+        <p>Track your progress and celebrate your achievements</p>
+    </div>
+    
+    <div class="container">
+        <div class="progress-stats">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                <div class="stat-value">24h</div>
+                <div class="stat-label">Total Practice Time</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 75%;"></div>
+                </div>
+                <div class="stat-target">Target: 32h</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+                <div class="stat-value">18</div>
+                <div class="stat-label">Sessions Completed</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 60%;"></div>
+                </div>
+                <div class="stat-target">Target: 30</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-fire"></i></div>
+                <div class="stat-value">3,240</div>
+                <div class="stat-label">Calories Burned</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 65%;"></div>
+                </div>
+                <div class="stat-target">Target: 5,000</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-trophy"></i></div>
+                <div class="stat-value">6</div>
+                <div class="stat-label">Poses Mastered</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 40%;"></div>
+                </div>
+                <div class="stat-target">Target: 15</div>
+            </div>
+        </div>
+        
+        <div class="tab-navigation">
+            <button class="tab-btn active" data-tab="overview">Overview</button>
+            <button class="tab-btn" data-tab="calendar">Calendar</button>
+            <button class="tab-btn" data-tab="poses">Pose Progress</button>
+            <button class="tab-btn" data-tab="achievements">Achievements</button>
+        </div>
+        
+        <div id="overview" class="tab-content active">
+            <div class="charts-container">
+                <div class="chart-card">
+                    <div class="chart-title">Weekly Practice Time</div>
+                    <canvas id="weeklyChart"></canvas>
+                    <div class="chart-legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: rgba(106, 17, 203, 0.8);"></div>
+                            <div class="legend-label">This Week</div>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: rgba(106, 17, 203, 0.2);"></div>
+                            <div class="legend-label">Last Week</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-card">
+                    <div class="chart-title">Pose Accuracy</div>
+                    <canvas id="accuracyChart"></canvas>
+                    <div class="chart-info">
+                        <p>Your pose accuracy has improved by <strong>12%</strong> in the last 30 days.</p>
+                    </div>
+                </div>
+                
+                <div class="chart-card full-width">
+                    <div class="chart-title">Monthly Progress</div>
+                    <canvas id="monthlyChart"></canvas>
+                    <div class="chart-filters">
+                        <select id="progress-metric" class="form-control">
+                            <option value="time">Practice Time</option>
+                            <option value="sessions">Sessions</option>
+                            <option value="calories">Calories</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="recent-activity">
+                <h2>Recent Activity</h2>
+                <div class="activity-timeline">
+                    <div class="activity-item">
+                        <div class="activity-date">Today</div>
+                        <div class="activity-icon"><i class="fas fa-yoga"></i></div>
+                        <div class="activity-content">
+                            <h3>Morning Vinyasa Flow</h3>
+                            <p>Completed a 45-minute session with 85% average accuracy</p>
+                            <div class="activity-poses">
+                                <span class="pose-tag">Warrior 1</span>
+                                <span class="pose-tag">Tree Pose</span>
+                                <span class="pose-tag">Triangle Pose</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="activity-date">Yesterday</div>
+                        <div class="activity-icon"><i class="fas fa-spa"></i></div>
+                        <div class="activity-content">
+                            <h3>Meditation Session</h3>
+                            <p>Completed a 15-minute mindfulness meditation</p>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="activity-date">Jun 12</div>
+                        <div class="activity-icon"><i class="fas fa-trophy"></i></div>
+                        <div class="activity-content">
+                            <h3>Achievement Unlocked</h3>
+                            <p>Earned "Tree Master" badge for maintaining 95%+ accuracy in Tree Pose</p>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="activity-date">Jun 10</div>
+                        <div class="activity-icon"><i class="fas fa-yoga"></i></div>
+                        <div class="activity-content">
+                            <h3>Evening Restorative Yoga</h3>
+                            <p>Completed a 30-minute session with 78% average accuracy</p>
+                            <div class="activity-poses">
+                                <span class="pose-tag">Lord of Dance</span>
+                                <span class="pose-tag">Warrior 2</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="calendar-tab" class="tab-content active">
+            <div class="calendar">
+                <div class="month-nav">
+                    <button class="btn btn-light"><i class="fas fa-chevron-left"></i></button>
+                    <div class="month-name">October 2023</div>
+                    <button class="btn btn-light"><i class="fas fa-chevron-right"></i></button>
+                </div>
+                
+                <div class="calendar-grid">
+                    <div class="weekday">Sun</div>
+                    <div class="weekday">Mon</div>
+                    <div class="weekday">Tue</div>
+                    <div class="weekday">Wed</div>
+                    <div class="weekday">Thu</div>
+                    <div class="weekday">Fri</div>
+                    <div class="weekday">Sat</div>
+                    
+                    <!-- Calendar days -->
+                    <div class="day"></div>
+                    <div class="day"></div>
+                    <div class="day"></div>
+                    <div class="day">
+                        <div class="day-number">1</div>
+                    </div>
+                    <div class="day">
+                        <div class="day-number">2</div>
+                    </div>
+                    <div class="day has-activity">
+                        <div class="day-number">3</div>
+                        <div><span class="activity-dot" style="background-color: var(--primary-color);"></span> Warrior 1</div>
+                    </div>
+                    <div class="day">
+                        <div class="day-number">4</div>
+                    </div>
+                    
+                    <div class="day has-activity">
+                        <div class="day-number">5</div>
+                        <div><span class="activity-dot" style="background-color: var(--secondary-color);"></span> Tree Pose</div>
+                    </div>
+                    <div class="day">
+                        <div class="day-number">6</div>
+                    </div>
+                    <div class="day has-activity">
+                        <div class="day-number">7</div>
+                        <div><span class="activity-dot" style="background-color: var(--info-color);"></span> Session</div>
+                    </div>
+                    <div class="day">
+                        <div class="day-number">8</div>
+                    </div>
+                    <div class="day has-activity">
+                        <div class="day-number">9</div>
+                        <div><span class="activity-dot" style="background-color: var(--primary-color);"></span> Warrior 2</div>
+                    </div>
+                    <div class="day">
+                        <div class="day-number">10</div>
+                    </div>
+                    <div class="day">
+                        <div class="day-number">11</div>
+                    </div>
+                    
+                    <!-- Additional rows... -->
+                    <!-- This would be dynamically generated based on actual user data -->
+                </div>
+            </div>
+        </div>
+        
+        <div id="poses-tab" class="tab-content">
+            <div class="charts-container">
+                <div class="chart-card">
+                    <div class="chart-title">Pose Accuracy</div>
+                    <canvas id="poseAccuracyChart"></canvas>
+                </div>
+                
+                <div class="chart-card">
+                    <div class="chart-title">Most Practiced Poses</div>
+                    <canvas id="mostPracticedChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div id="trends-tab" class="tab-content">
+            <div class="charts-container">
+                <div class="chart-card">
+                    <div class="chart-title">Weekly Progress</div>
+                    <canvas id="weeklyProgressChart"></canvas>
+                </div>
+                
+                <div class="chart-card">
+                    <div class="chart-title">Session Duration</div>
+                    <canvas id="sessionDurationChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div id="badges-tab" class="tab-content">
+            <h2 class="text-center mb-4">Your Achievements</h2>
+            
+            <div class="achievement-badges">
+                <div class="badge">
+                    <div class="badge-icon"><i class="fas fa-trophy"></i></div>
+                    <div class="badge-title">First Step</div>
+                    <div class="badge-description">Completed your first yoga session</div>
+                </div>
+                
+                <div class="badge">
+                    <div class="badge-icon"><i class="fas fa-star"></i></div>
+                    <div class="badge-title">Perfect Form</div>
+                    <div class="badge-description">Achieved 95%+ accuracy in a pose</div>
+                </div>
+                
+                <div class="badge">
+                    <div class="badge-icon"><i class="fas fa-fire"></i></div>
+                    <div class="badge-title">Streak Master</div>
+                    <div class="badge-description">7 days practice streak</div>
+                </div>
+                
+                <div class="badge">
+                    <div class="badge-icon"><i class="fas fa-medal"></i></div>
+                    <div class="badge-title">Warrior</div>
+                    <div class="badge-description">Mastered all warrior poses</div>
+                </div>
+                
+                <div class="badge">
+                    <div class="badge-icon"><i class="fas fa-clock"></i></div>
+                    <div class="badge-title">Dedicated</div>
+                    <div class="badge-description">10+ hours of practice</div>
+                </div>
+                
+                <div class="badge">
+                    <div class="badge-icon" style="opacity: 0.3;"><i class="fas fa-crown"></i></div>
+                    <div class="badge-title" style="color: #aaa;">Yoga Master</div>
+                    <div class="badge-description">Complete 100 sessions</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Chart initialization would use the data passed from Flask
+        // These are placeholder configurations
+        
+        // Tab switching functionality
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabId = button.getAttribute('data-tab');
+                
+                // Remove active class from all buttons and contents
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                
+                // Add active class to current button and content
+                button.classList.add('active');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            });
+        });
+        
+        // Pose Accuracy Chart
+        const poseCtx = document.getElementById('poseAccuracyChart').getContext('2d');
+        const poseAccuracyChart = new Chart(poseCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Tree Pose', 'Warrior 1', 'Warrior 2', 'Triangle Pose', 'Lord of Dance'],
+                datasets: [{
+                    label: 'Average Accuracy (%)',
+                    data: [87, 82, 91, 78, 85],
+                    backgroundColor: 'rgba(106, 17, 203, 0.7)',
+                    borderColor: 'rgba(106, 17, 203, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+        
+        // Most Practiced Chart
+        const practiceCtx = document.getElementById('mostPracticedChart').getContext('2d');
+        const mostPracticedChart = new Chart(practiceCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Tree Pose', 'Warrior 1', 'Warrior 2', 'Triangle Pose', 'Lord of Dance'],
+                datasets: [{
+                    data: [12, 8, 9, 6, 7],
+                    backgroundColor: [
+                        'rgba(106, 17, 203, 0.7)',
+                        'rgba(67, 206, 162, 0.7)',
+                        'rgba(24, 90, 157, 0.7)',
+                        'rgba(255, 159, 64, 0.7)',
+                        'rgba(153, 102, 255, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgba(106, 17, 203, 1)',
+                        'rgba(67, 206, 162, 1)',
+                        'rgba(24, 90, 157, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(153, 102, 255, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    }
+                }
+            }
+        });
+        
+        // Weekly Progress Chart
+        const weeklyCtx = document.getElementById('weeklyProgressChart').getContext('2d');
+        const weeklyProgressChart = new Chart(weeklyCtx, {
+            type: 'line',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                datasets: [{
+                    label: 'Average Accuracy (%)',
+                    data: [75, 79, 83, 87],
+                    backgroundColor: 'rgba(106, 17, 203, 0.2)',
+                    borderColor: 'rgba(106, 17, 203, 1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        // Session Duration Chart
+        const durationCtx = document.getElementById('sessionDurationChart').getContext('2d');
+        const sessionDurationChart = new Chart(durationCtx, {
+            type: 'line',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                datasets: [{
+                    label: 'Average Session (minutes)',
+                    data: [15, 20, 22, 25],
+                    backgroundColor: 'rgba(67, 206, 162, 0.2)',
+                    borderColor: 'rgba(67, 206, 162, 1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

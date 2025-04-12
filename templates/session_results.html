@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Session Results</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            margin-top: 20px;
+            color: #4a90e2;
+            text-transform: uppercase;
+            font-size: 2.5em;
+            letter-spacing: 1px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 60%;
+            margin-top: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 1.5s ease-out;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 15px;
+            text-align: center;
+            background-color: #fff;
+        }
+        th {
+            background-color: #4a90e2;
+            color: white;
+            font-size: 1.1em;
+        }
+        td {
+            background-color: #f9f9f9;
+        }
+        tr:nth-child(even) td {
+            background-color: #f1f1f1;
+        }
+        tr:hover td {
+            background-color: #e0e0e0;
+            transform: scale(1.02);
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        h2 {
+            color: #333;
+            margin-top: 30px;
+            font-size: 1.5em;
+        }
+        .medal {
+            width: 100px;
+            margin-top: 20px;
+            border-radius: 50%;
+            animation: rotateMedal 1s linear infinite;
+        }
+        .back-link {
+            margin-top: 30px;
+            font-size: 1.1em;
+            color: #4a90e2;
+            text-decoration: none;
+            padding: 10px 20px;
+            border: 2px solid #4a90e2;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .back-link:hover {
+            background-color: #4a90e2;
+            color: white;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        @keyframes rotateMedal {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Yoga Session Results</h1>
+    <table>
+        <tr>
+            <th>Pose</th>
+            <th>Average Accuracy (%)</th>
+        </tr>
+        {% for pose, accuracy in results.items() %}
+        <tr>
+            <td>{{ pose }}</td>
+            <td>{{ accuracy|round(2) }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <h2>Overall Accuracy: {{ overall_accuracy|round(2) }}%</h2>
+    <h2>Award: {{ medal }}</h2>
+    <img src="{{ url_for('static', filename='img/' + medal + '.png') }}" alt="Medal" class="medal">
+    <a href="{{ url_for('session') }}" class="back-link">Back to Home</a>
+</body>
+</html>

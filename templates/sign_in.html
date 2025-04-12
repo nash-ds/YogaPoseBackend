@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yoga Flow - Sign In</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='yoga-style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+            min-height: 100vh;
+        }
+        
+        .auth-page {
+            display: flex;
+            min-height: calc(100vh - 70px);
+        }
+        
+        .auth-image {
+            display: none;
+            background-image: url("{{ url_for('static', filename='img/login-bg.jpg') }}");
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+        
+        .auth-image::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(106, 17, 203, 0.9), rgba(37, 117, 252, 0.9));
+            opacity: 0.8;
+        }
+        
+        .auth-image-content {
+            position: relative;
+            z-index: 1;
+            color: white;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+        }
+        
+        .auth-image-title {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        
+        .auth-image-subtitle {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        
+        .auth-quote {
+            font-style: italic;
+            font-size: 20px;
+            margin-top: auto;
+            padding: 20px;
+            border-left: 3px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        .auth-container {
+            max-width: 450px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 40px;
+            background-color: white;
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--box-shadow-md);
+            animation: fadeIn 0.6s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .auth-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        
+        .auth-subtitle {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--gray-color);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px 0;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: var(--primary-color);
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--primary-gradient);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            transition: all 0.3s;
+            pointer-events: none;
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            color: #666;
+        }
+        
+        .form-group.focused label,
+        .form-group.has-value label {
+            top: -10px;
+            left: 10px;
+            font-size: 12px;
+            color: var(--primary-color);
+            background-color: white;
+            padding: 0 5px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1.5px solid var(--gray-color);
+            border-radius: var(--border-radius-md);
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(106, 17, 203, 0.1);
+            outline: none;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .checkbox-container input {
+            margin-right: 8px;
+        }
+        
+        .forgot-link {
+            color: var(--primary-color);
+            font-size: 14px;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        
+        .forgot-link:hover {
+            text-decoration: underline;
+        }
+        
+        .btn-auth {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: var(--border-radius-md);
+            background: var(--primary-gradient);
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .btn-auth:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(106, 17, 203, 0.2);
+        }
+        
+        .social-divider {
+            text-align: center;
+            position: relative;
+            margin: 25px 0;
+        }
+        
+        .social-divider::before,
+        .social-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: calc(50% - 30px);
+            height: 1px;
+            background-color: var(--gray-color);
+        }
+        
+        .social-divider::before {
+            left: 0;
+        }
+        
+        .social-divider::after {
+            right: 0;
+        }
+        
+        .social-login {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .social-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #f5f7fa;
+            color: #333;
+            border: 1px solid var(--gray-color);
+            transition: all 0.3s;
+        }
+        
+        .social-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .facebook:hover { color: #3b5998; }
+        .google:hover { color: #db4437; }
+        .apple:hover { color: #000000; }
+        
+        .auth-footer {
+            text-align: center;
+            margin-top: 25px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .auth-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .input-with-icon {
+            position: relative;
+        }
+        
+        .input-with-icon .form-control {
+            padding-left: 40px;
+        }
+        
+        .input-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            transition: all 0.3s;
+        }
+        
+        .form-group.focused .input-icon,
+        .form-group.has-value .input-icon {
+            color: var(--primary-color);
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #666;
+        }
+        
+        @media (min-width: 992px) {
+            .auth-page {
+                display: flex;
+            }
+            
+            .auth-image {
+                display: block;
+                flex: 1;
+            }
+            
+            .auth-form {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 40px;
+            }
+            
+            .auth-container {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <a href="{{ url_for('index') }}" class="navbar-brand">
+            <i class="fas fa-om"></i> Yoga Flow
+        </a>
+        <ul class="navbar-links">
+            <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Home</a></li>
+            <li><a href="{{ url_for('session') }}"><i class="fas fa-calendar-alt"></i> Sessions</a></li>
+            <li><a href="{{ url_for('meditation') }}"><i class="fas fa-spa"></i> Meditation</a></li>
+            <li><a href="{{ url_for('diet_tracker') }}"><i class="fas fa-apple-alt"></i> Diet</a></li>
+            <li><a href="{{ url_for('progress') }}"><i class="fas fa-chart-line"></i> Progress</a></li>
+        </ul>
+    </nav>
+    
+    <div class="auth-page">
+        <div class="auth-image">
+            <div class="auth-image-content">
+                <h1 class="auth-image-title">Begin Your Yoga Journey</h1>
+                <p class="auth-image-subtitle">Join our community of yoga practitioners and unlock your full potential. Track your progress, follow guided sessions, and transform your practice.</p>
+                <div class="auth-quote">
+                    "Yoga is the journey of the self, through the self, to the self." <br>
+                    <small>— The Bhagavad Gita</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="auth-form">
+            <div class="auth-container">
+                <div class="auth-header">
+                    <h2 class="auth-title">Welcome to Yoga Flow</h2>
+                    <p class="auth-subtitle">Sign in to continue your practice</p>
+                </div>
+                
+                <div class="tabs">
+                    <div class="tab active" data-tab="signin">Sign In</div>
+                    <div class="tab" data-tab="register">Register</div>
+                </div>
+                
+                <!-- Sign In Form -->
+                <div class="tab-content active" id="signin-tab">
+                    <form action="{{ url_for('login') }}" method="post">
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <span class="input-icon"><i class="fas fa-envelope"></i></span>
+                                <input type="email" id="signin-email" name="email" class="form-control" required>
+                                <label for="signin-email">Email Address</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <span class="input-icon"><i class="fas fa-lock"></i></span>
+                                <input type="password" id="signin-password" name="password" class="form-control" required>
+                                <label for="signin-password">Password</label>
+                                <span class="password-toggle" id="signin-password-toggle"><i class="fas fa-eye"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div class="checkbox-group">
+                            <label class="checkbox-container">
+                                <input type="checkbox" name="remember">
+                                Remember me
+                            </label>
+                            <a href="#" class="forgot-link">Forgot password?</a>
+                        </div>
+                        
+                        <button type="submit" class="btn-auth">Sign In</button>
+                    </form>
+                    
+                    <div class="social-divider">or sign in with</div>
+                    
+                    <div class="social-login">
+                        <a href="#" class="social-btn facebook"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-btn google"><i class="fab fa-google"></i></a>
+                        <a href="#" class="social-btn apple"><i class="fab fa-apple"></i></a>
+                    </div>
+                </div>
+                
+                <!-- Register Form -->
+                <div class="tab-content" id="register-tab">
+                    <form action="{{ url_for('register') }}" method="post">
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <span class="input-icon"><i class="fas fa-user"></i></span>
+                                <input type="text" id="register-name" name="name" class="form-control" required>
+                                <label for="register-name">Full Name</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <span class="input-icon"><i class="fas fa-envelope"></i></span>
+                                <input type="email" id="register-email" name="email" class="form-control" required>
+                                <label for="register-email">Email Address</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <span class="input-icon"><i class="fas fa-lock"></i></span>
+                                <input type="password" id="register-password" name="password" class="form-control" required>
+                                <label for="register-password">Password</label>
+                                <span class="password-toggle" id="register-password-toggle"><i class="fas fa-eye"></i></span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <span class="input-icon"><i class="fas fa-lock"></i></span>
+                                <input type="password" id="register-confirm" name="confirm_password" class="form-control" required>
+                                <label for="register-confirm">Confirm Password</label>
+                                <span class="password-toggle" id="register-confirm-toggle"><i class="fas fa-eye"></i></span>
+                            </div>
+                        </div>
+                        
+                        <label class="checkbox-container" style="margin-bottom: 20px; display: block;">
+                            <input type="checkbox" name="agree" required>
+                            I agree to the <a href="#" class="forgot-link">Terms of Service</a> and <a href="#" class="forgot-link">Privacy Policy</a>
+                        </label>
+                        
+                        <button type="submit" class="btn-auth">Create Account</button>
+                    </form>
+                    
+                    <div class="social-divider">or register with</div>
+                    
+                    <div class="social-login">
+                        <a href="#" class="social-btn facebook"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-btn google"><i class="fab fa-google"></i></a>
+                        <a href="#" class="social-btn apple"><i class="fab fa-apple"></i></a>
+                    </div>
+                </div>
+                
+                <div class="auth-footer">
+                    <p>© 2023 Yoga Flow. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Tab switching functionality
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.getAttribute('data-tab');
+                
+                // Remove active class from all tabs and contents
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                
+                // Add active class to current tab and content
+                tab.classList.add('active');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            });
+        });
+        
+        // Form input animation
+        const formControls = document.querySelectorAll('.form-control');
+        
+        formControls.forEach(input => {
+            // Initial check for values (in case of autofill)
+            if (input.value.trim() !== '') {
+                input.parentElement.closest('.form-group').classList.add('has-value');
+            }
+            
+            // Focus events
+            input.addEventListener('focus', () => {
+                input.parentElement.closest('.form-group').classList.add('focused');
+            });
+            
+            input.addEventListener('blur', () => {
+                input.parentElement.closest('.form-group').classList.remove('focused');
+                
+                if (input.value.trim() !== '') {
+                    input.parentElement.closest('.form-group').classList.add('has-value');
+                } else {
+                    input.parentElement.closest('.form-group').classList.remove('has-value');
+                }
+            });
+        });
+        
+        // Password toggle functionality
+        const passwordToggles = document.querySelectorAll('.password-toggle');
+        
+        passwordToggles.forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                const passwordInput = toggle.previousElementSibling.previousElementSibling;
+                const icon = toggle.querySelector('i');
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    passwordInput.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
