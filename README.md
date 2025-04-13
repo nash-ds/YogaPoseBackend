@@ -41,3 +41,4 @@ This is a web application that uses computer vision to detect and evaluate yoga 
 git clone https://github.com/nash-ds/YogaPoseTEPROJECT.git
 cd YogaPoseTEPROJECT
 ```
+[![DOI](https://zenodo.org/badge/876270720.svg)](https://doi.org/10.5281/zenodo.15205068)
