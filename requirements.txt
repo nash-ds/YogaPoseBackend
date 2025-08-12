@@ -1,5 +1,7 @@
 flask
 flask-cors
 opencv-python
+opencv-python-headless
 mediapipe
+
 numpy
